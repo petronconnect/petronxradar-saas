@@ -1,0 +1,2586 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Petron Radar API - Plataforma SaaS de Inteligência em Petróleo, Óleo & Gás
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Dashboard metrics and summary
+  - name: opportunities
+    description: Business opportunities in Oil & Gas
+  - name: bulletins
+    description: Intelligence bulletins
+  - name: clients
+    description: Client management
+  - name: plans
+    description: Subscription plans
+  - name: inquiries
+    description: Lead capture and inquiry management
+  - name: petroconnect
+    description: Petroconnect platform integration
+  - name: beta-clients
+    description: Beta client program management
+
+paths:
+  /petroconnect/public-import/status:
+    get:
+      operationId: getPetronectPublicImportStatus
+      responses:
+        "200":
+          description: Public-list import status and explicit field limitations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetronectPublicImportStatus"
+  /petroconnect/public-import/runs:
+    get:
+      operationId: getPetronectPublicImportRuns
+      responses:
+        "200":
+          description: Recent administrative import attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PetronectPublicImportRun" }
+  /petroconnect/public-import/runs/{id}:
+    get:
+      operationId: getPetronectPublicImportRun
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Saved review preview for resuming or applying an import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetronectPublicImportRunPreview"
+        "404": { description: Import run not found }
+  /petroconnect/public-import/opportunities:
+    get:
+      operationId: getPetronectPublicOpportunities
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Imported public listing records only, values and sectors are absent
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PetronectPublicOpportunity" }
+  /petroconnect/public-import/changes:
+    get:
+      operationId: getPetronectPublicOpportunityChanges
+      responses:
+        "200":
+          description: Audited additions and public-field revisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PetronectPublicChange" }
+  /petroconnect/public-import/preview:
+    post:
+      operationId: previewPetronectPublicImport
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string, maxLength: 5000000 }
+          text/plain:
+            schema: { type: string, maxLength: 5000000 }
+      responses:
+        "201":
+          description: Validated preview; no opportunity records changed yet
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetronectPublicImportPreview" }
+        "400":
+          description: Invalid CSV; the failed attempt is logged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runId: { type: integer }
+                  error: { type: string }
+  /petroconnect/public-import/runs/{id}/apply:
+    post:
+      operationId: applyPetronectPublicImport
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Reviewed import applied idempotently
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetronectPublicImportApplyResult" }
+        "404": { description: Import run not found }
+        "409": { description: Saved preview unavailable }
+        "500": { description: Failure logged; preview retained for retry }
+  /payments/recovery:
+    get:
+      operationId: getPaymentRecovery
+      responses:
+        "200":
+          description: Payment metadata bound to an HttpOnly recovery receipt; no bearer secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recovery]
+                properties:
+                  recovery:
+                    type: [object, "null"]
+                    required: [paymentId, planSlug, status, googleRequired]
+                    properties:
+                      paymentId: { type: integer }
+                      planSlug: { type: string }
+                      status: { type: string }
+                      googleRequired: { type: boolean }
+  /auth/options:
+    get:
+      operationId: getAuthOptions
+      responses:
+        "200":
+          description: Available sign-in methods
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [googleAvailable]
+                properties:
+                  googleAvailable: { type: boolean }
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications belonging to the signed-in user
+      responses:
+        "200":
+          description: Notifications and unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationList"
+        "401": { description: Authentication required }
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark one of the signed-in user's notifications as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "400": { description: Invalid notification ID }
+        "404": { description: Notification not found for this user }
+        "401": { description: Authentication required }
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all of the signed-in user's notifications as read
+      responses:
+        "200":
+          description: Number of notifications updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarkAllNotificationsReadResult"
+        "401": { description: Authentication required }
+  /auth/register:
+    post:
+      operationId: registerCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+      responses:
+        "201":
+          description: Pending registration, no account or product access created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationResult"
+        "200":
+          description: Existing pending registration reused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationResult"
+        "400": { description: Invalid input }
+        "409": { description: Registration conflict }
+        "429": { description: Too many attempts }
+  /auth/registration:
+    get:
+      operationId: getRegistration
+      responses:
+        "200":
+          description: Browser-session-owned pending registration
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [registration, googleEmail]
+                properties:
+                  googleEmail: { type: [string, "null"] }
+                  registration:
+                    type: [object, "null"]
+                    additionalProperties: true
+  /auth/google/start:
+    get:
+      operationId: startGoogle
+      parameters:
+        - in: query
+          name: purpose
+          schema: { type: string, enum: [login, register, link, reauth] }
+        - in: query
+          name: next
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect to Google or local configuration error }
+        "400": { description: Invalid purpose }
+        "429": { description: Too many attempts }
+  /auth/google/callback:
+    get:
+      operationId: googleCallback
+      parameters:
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: code
+          schema: { type: string }
+        - in: query
+          name: error
+          schema: { type: string }
+      responses:
+        "302": { description: One-time callback; redirect to safe local destination }
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard summary metrics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401": { description: Authentication required }
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getDashboardRecentActivity
+      tags: [dashboard]
+      summary: Recent platform activity feed
+      responses:
+        "200":
+          description: Recent activity items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+        "401": { description: Authentication required }
+
+  /dashboard/search:
+    get:
+      operationId: searchDashboard
+      tags: [dashboard]
+      summary: Search dashboard catalog items
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+      responses:
+        "200":
+          description: Matching opportunities, bulletins and administrator-only client records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DashboardSearchResult"
+        "400": { description: Search query is invalid }
+        "401": { description: Authentication required }
+
+  /dashboard/sector-breakdown:
+    get:
+      operationId: getDashboardSectorBreakdown
+      tags: [dashboard]
+      summary: Opportunities by sector/segment
+      responses:
+        "200":
+          description: Sector breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SectorStat"
+        "401": { description: Authentication required }
+
+  /opportunities:
+    get:
+      operationId: listOpportunities
+      tags: [opportunities]
+      summary: List Oil & Gas opportunities
+      parameters:
+        - name: sector
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of opportunities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Opportunity"
+    post:
+      operationId: createOpportunity
+      tags: [opportunities]
+      summary: Create a new opportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpportunityInput"
+      responses:
+        "201":
+          description: Created opportunity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Opportunity"
+
+  /opportunities/{id}:
+    get:
+      operationId: getOpportunity
+      tags: [opportunities]
+      summary: Get opportunity by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Opportunity detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Opportunity"
+
+  /opportunities/{id}/documents:
+    get:
+      operationId: listOpportunityDocuments
+      tags: [opportunities]
+      summary: List curated links and official document review status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Opportunity documents and latest review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpportunityDocumentsState"
+        "401": { description: Authentication required }
+        "404": { description: Opportunity not found }
+    post:
+      operationId: createOpportunityDocument
+      tags: [opportunities]
+      summary: Add a curated document link to an opportunity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpportunityDocumentInput" }
+      responses:
+        "201":
+          description: Curated link added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityDocument" }
+        "400": { description: Invalid link or input }
+        "403": { description: Petron team access required }
+        "404": { description: Opportunity not found }
+
+  /opportunities/{id}/documents/review:
+    post:
+      operationId: reviewOpportunityDocuments
+      tags: [opportunities]
+      summary: Record that all opportunity document links were checked
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpportunityDocumentReviewInput" }
+      responses:
+        "200":
+          description: Official document review recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityDocumentReview" }
+        "403": { description: Petron team access required }
+        "404": { description: Opportunity or source link not found }
+        "409": { description: Source link or documents have not all been tested }
+
+  /opportunities/documents/{docId}/test:
+    post:
+      operationId: markOpportunityDocumentTested
+      tags: [opportunities]
+      summary: Record a manual test of a curated document link
+      parameters:
+        - name: docId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Link test recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityDocument" }
+        "403": { description: Petron team access required }
+        "404": { description: Document link not found }
+
+  /opportunities/documents/{docId}:
+    delete:
+      operationId: deleteOpportunityDocument
+      tags: [opportunities]
+      summary: Remove a curated document link
+      parameters:
+        - name: docId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Document link removed
+        "403": { description: Petron team access required }
+        "404": { description: Document link not found }
+
+  /bulletins:
+    get:
+      operationId: listBulletins
+      tags: [bulletins]
+      summary: List intelligence bulletins
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of bulletins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bulletin"
+    post:
+      operationId: createBulletin
+      tags: [bulletins]
+      summary: Create a bulletin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulletinInput"
+      responses:
+        "201":
+          description: Created bulletin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bulletin"
+
+  /bulletins/{id}:
+    get:
+      operationId: getBulletin
+      tags: [bulletins]
+      summary: Get bulletin by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bulletin detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bulletin"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List clients
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "201":
+          description: Created client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [plans]
+      summary: List subscription plans
+      responses:
+        "200":
+          description: Subscription plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+
+  /inquiries:
+    get:
+      operationId: listInquiries
+      tags: [inquiries]
+      summary: List all inquiries/leads
+      responses:
+        "200":
+          description: List of inquiries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Inquiry"
+    post:
+      operationId: createInquiry
+      tags: [inquiries]
+      summary: Submit a new inquiry (lead capture)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InquiryInput"
+      responses:
+        "201":
+          description: Inquiry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inquiry"
+
+  /inquiries/{id}:
+    get:
+      operationId: getInquiry
+      tags: [inquiries]
+      summary: Get inquiry by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Inquiry detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inquiry"
+
+  /inquiries/{id}/convert:
+    post:
+      operationId: convertInquiryToClient
+      tags: [inquiries]
+      summary: Convert a lead inquiry into a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client created from inquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /inquiries/{id}/status:
+    patch:
+      operationId: updateInquiryStatus
+      tags: [inquiries]
+      summary: Update inquiry lead status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InquiryStatusUpdate"
+      responses:
+        "200":
+          description: Updated inquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inquiry"
+
+  /petroconnect/status:
+    get:
+      operationId: getPetroconnectStatus
+      tags: [petroconnect]
+      summary: Get Petroconnect integration status
+      responses:
+        "200":
+          description: Petroconnect integration status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetroconnectStatus"
+
+  /petroconnect/connect:
+    post:
+      operationId: connectPetroconnect
+      tags: [petroconnect]
+      summary: Initiate Petroconnect connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PetroconnectConnectInput"
+      responses:
+        "200":
+          description: Connection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetroconnectStatus"
+
+  /petroconnect/sync:
+    post:
+      operationId: triggerPetroconnectSync
+      tags: [petroconnect]
+      summary: Trigger a manual sync with Petroconnect
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PetroconnectSyncInput"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetroconnectSyncResult"
+
+  /petroconnect/sync-log:
+    get:
+      operationId: getPetroconnectSyncLog
+      tags: [petroconnect]
+      summary: Get recent Petroconnect sync history
+      responses:
+        "200":
+          description: List of sync log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PetroconnectSyncLogEntry"
+
+  /beta-clients:
+    get:
+      operationId: listBetaClients
+      tags: [beta-clients]
+      summary: List all beta clients
+      responses:
+        "200":
+          description: List of beta clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BetaClient"
+    post:
+      operationId: createBetaClient
+      tags: [beta-clients]
+      summary: Create a beta client record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BetaClientInput"
+      responses:
+        "201":
+          description: Beta client created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BetaClient"
+
+  /beta-clients/{id}:
+    get:
+      operationId: getBetaClient
+      tags: [beta-clients]
+      summary: Get beta client by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Beta client detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BetaClient"
+    patch:
+      operationId: updateBetaClient
+      tags: [beta-clients]
+      summary: Update beta client fields
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BetaClientPatch"
+      responses:
+        "200":
+          description: Updated beta client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BetaClient"
+
+  /beta-clients/{id}/checklist/{itemId}:
+    patch:
+      operationId: updateBetaClientChecklistItem
+      tags: [beta-clients]
+      summary: Toggle a checklist item for a beta client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChecklistItemPatch"
+      responses:
+        "200":
+          description: Updated checklist item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistItem"
+
+  /radar360/profiles:
+    get:
+      operationId: listRadar360Profiles
+      tags: [radar360]
+      summary: List profiles visible to the current user
+      responses:
+        "200":
+          description: Profiles visible to the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Radar360Profile" }
+    post:
+      operationId: createRadar360Profile
+      tags: [radar360]
+      summary: Create a profile for an existing company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Radar360ProfileInput" }
+      responses:
+        "201":
+          description: Profile created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Profile" }
+
+  /radar360/profiles/bootstrap:
+    post:
+      operationId: bootstrapRadar360References
+      tags: [radar360]
+      summary: Add missing historical references without linking accounts
+      responses:
+        "200":
+          description: Bootstrap result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360BootstrapResult" }
+
+  /radar360/profiles/{id}:
+    patch:
+      operationId: updateRadar360Profile
+      tags: [radar360]
+      summary: Update a profile's matching and cadence settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Radar360ProfileUpdate" }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Profile" }
+
+  /radar360/profiles/{id}/link:
+    post:
+      operationId: linkRadar360Profile
+      tags: [radar360]
+      summary: Confirm a historical profile's company match
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Radar360ProfileLinkInput" }
+      responses:
+        "200":
+          description: Linked profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Profile" }
+
+  /radar360/reconciliation:
+    get:
+      operationId: getRadar360Reconciliation
+      tags: [radar360]
+      summary: Compare historical references with existing company accounts
+      responses:
+        "200":
+          description: Reconciliation view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Reconciliation" }
+
+  /radar360/source-status:
+    get:
+      operationId: getRadar360SourceStatus
+      tags: [radar360]
+      summary: Show real source and import availability
+      responses:
+        "200":
+          description: Available sources and their limitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Radar360SourceStatus" }
+
+  /radar360/events:
+    get:
+      operationId: listRadar360Events
+      tags: [radar360]
+      summary: List recent private scan and import events
+      parameters:
+        - name: profileId
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Private execution and error history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Radar360Event" }
+
+  /radar360/imports:
+    get:
+      operationId: listRadar360Imports
+      tags: [radar360]
+      summary: List imports visible to the current user
+      parameters:
+        - name: profileId
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Import history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Radar360Import" }
+
+  /radar360/imports/preview:
+    post:
+      operationId: previewRadar360Import
+      tags: [radar360]
+      summary: Validate an opportunity list before importing it
+      parameters:
+        - name: profileId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: sourceName
+          in: query
+          required: true
+          schema: { type: string }
+        - name: fileName
+          in: query
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string }
+      responses:
+        "201":
+          description: Import preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360ImportPreview" }
+
+  /radar360/imports/{id}/apply:
+    post:
+      operationId: applyRadar360Import
+      tags: [radar360]
+      summary: Apply a reviewed import idempotently
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Import application result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Import" }
+
+  /radar360/runs:
+    get:
+      operationId: listRadar360Runs
+      tags: [radar360]
+      summary: List private editions visible to the current user
+      parameters:
+        - name: profileId
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Edition history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Radar360RunSummary" }
+    post:
+      operationId: createRadar360Run
+      tags: [radar360]
+      summary: Generate a draft edition from selected available sources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Radar360RunInput" }
+      responses:
+        "201":
+          description: Generated draft or ready edition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Run" }
+
+  /radar360/runs/{id}:
+    get:
+      operationId: getRadar360Run
+      tags: [radar360]
+      summary: Get a scoped edition and its opportunity details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Edition details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Run" }
+
+  /radar360/runs/{id}/resume:
+    post:
+      operationId: resumeRadar360Run
+      tags: [radar360]
+      summary: Resume a failed or incomplete edition without duplicating it
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Resumed edition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Run" }
+
+  /radar360/runs/{id}/publish:
+    post:
+      operationId: publishRadar360Run
+      tags: [radar360]
+      summary: Publish a validated edition to its private company area
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Published edition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360Run" }
+
+  /radar360/runs/{id}/image:
+    get:
+      operationId: getRadar360RunImage
+      tags: [radar360]
+      summary: Serve the private image generated for an edition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Generated SVG image
+          content:
+            image/svg+xml:
+              schema: { type: string }
+
+  /radar360/files:
+    get:
+      operationId: listRadar360Files
+      tags: [radar360]
+      summary: List private profile documents and identity files
+      parameters:
+        - name: profileId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Private files
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Radar360File" }
+
+  /radar360/files/upload-url:
+    post:
+      operationId: requestRadar360FileUpload
+      tags: [radar360]
+      summary: Request a private upload URL for a profile file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Radar360FileUploadInput" }
+      responses:
+        "200":
+          description: Temporary upload URL
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360FileUploadResponse" }
+
+  /radar360/files/{id}/complete:
+    post:
+      operationId: completeRadar360FileUpload
+      tags: [radar360]
+      summary: Confirm and validate an uploaded private file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Uploaded file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360File" }
+
+  /radar360/files/{id}/verify:
+    patch:
+      operationId: verifyRadar360CapabilityFile
+      tags: [radar360]
+      summary: Mark capability evidence as reviewed by an administrator
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Radar360FileVerificationInput" }
+      responses:
+        "200":
+          description: Updated file review status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Radar360File" }
+
+  /radar360/files/{id}/download:
+    get:
+      operationId: downloadRadar360File
+      tags: [radar360]
+      summary: Download a private profile file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Private file bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
+components:
+  schemas:
+    Notification:
+      type: object
+      required: [id, kind, title, message, href, createdAt, readAt]
+      properties:
+        id: { type: integer }
+        kind: { type: string }
+        title: { type: string }
+        message: { type: string }
+        href: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: [string, "null"], format: date-time }
+    NotificationList:
+      type: object
+      required: [notifications, unreadCount]
+      properties:
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        unreadCount: { type: integer }
+    MarkAllNotificationsReadResult:
+      type: object
+      required: [updatedCount]
+      properties:
+        updatedCount: { type: integer }
+    PetronectPublicImportStatus:
+      type: object
+      required: [status, importedCount, lastRun, source, limitations]
+      properties:
+        status: { type: string, enum: [not_configured, pending, success, failure] }
+        importedCount: { type: integer }
+        lastRun:
+          oneOf:
+            - $ref: "#/components/schemas/PetronectPublicImportRun"
+            - type: "null"
+        source: { type: string }
+        limitations:
+          type: object
+          required: [value, sector, documents]
+          properties:
+            value: { type: string }
+            sector: { type: string }
+            documents: { type: string }
+    PetronectPublicImportRun:
+      type: object
+      required: [id, fileName, status, totalRows, newRows, updatedRows, unchangedRows, duplicateRows, invalidRows, errorMessage, createdAt, completedAt]
+      properties:
+        id: { type: integer }
+        fileName: { type: [string, "null"] }
+        status: { type: string, enum: [pending, success, failed] }
+        totalRows: { type: integer }
+        newRows: { type: integer }
+        updatedRows: { type: integer }
+        unchangedRows: { type: integer }
+        duplicateRows: { type: integer }
+        invalidRows: { type: integer }
+        errorMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+    PetronectPublicPreviewRow:
+      type: object
+      required: [rowNumber, petronectId, title, subStatus, company, scope, startDate, endDate, processType, deliveryLocation, error, action]
+      properties:
+        rowNumber: { type: integer }
+        petronectId: { type: string }
+        title: { type: string }
+        subStatus: { type: [string, "null"] }
+        company: { type: [string, "null"] }
+        scope: { type: [string, "null"] }
+        startDate: { type: [string, "null"], format: date }
+        endDate: { type: [string, "null"], format: date }
+        processType: { type: [string, "null"] }
+        deliveryLocation: { type: [string, "null"] }
+        error: { type: [string, "null"] }
+        action: { type: string, enum: [new, updated, unchanged, duplicate, invalid] }
+    PetronectPublicImportPreview:
+      type: object
+      required: [runId, totalRows, newRows, updatedRows, unchangedRows, duplicateRows, invalidRows, preview]
+      properties:
+        runId: { type: integer }
+        totalRows: { type: integer }
+        newRows: { type: integer }
+        updatedRows: { type: integer }
+        unchangedRows: { type: integer }
+        duplicateRows: { type: integer }
+        invalidRows: { type: integer }
+        preview:
+          type: array
+          items: { $ref: "#/components/schemas/PetronectPublicPreviewRow" }
+    PetronectPublicImportRunPreview:
+      allOf:
+        - $ref: "#/components/schemas/PetronectPublicImportRun"
+        - type: object
+          required: [preview]
+          properties:
+            preview:
+              type: array
+              items: { $ref: "#/components/schemas/PetronectPublicPreviewRow" }
+    PetronectPublicImportApplyResult:
+      type: object
+      properties:
+        complete: { type: boolean }
+        run: { $ref: "#/components/schemas/PetronectPublicImportRun" }
+        totals:
+          type: object
+          properties:
+            newRows: { type: integer }
+            updatedRows: { type: integer }
+            unchangedRows: { type: integer }
+            duplicateRows: { type: integer }
+            invalidRows: { type: integer }
+    PetronectPublicOpportunity:
+      type: object
+      required: [id, petronectId, title, subStatus, company, scope, startDate, endDate, processType, deliveryLocation, lastImportRunId, sourceFirstSeenAt, sourceUpdatedAt, value, sector]
+      properties:
+        id: { type: integer }
+        petronectId: { type: string }
+        title: { type: string }
+        subStatus: { type: [string, "null"] }
+        company: { type: [string, "null"] }
+        scope: { type: [string, "null"] }
+        startDate: { type: [string, "null"], format: date }
+        endDate: { type: [string, "null"], format: date }
+        processType: { type: [string, "null"] }
+        deliveryLocation: { type: [string, "null"] }
+        lastImportRunId: { type: [integer, "null"] }
+        sourceFirstSeenAt: { type: string, format: date-time }
+        sourceUpdatedAt: { type: string, format: date-time }
+        value: { type: "null" }
+        sector: { type: "null" }
+    PetronectPublicChange:
+      type: object
+      properties:
+        id: { type: integer }
+        change_type: { type: string, enum: [new, updated] }
+        before_data: { type: [object, "null"] }
+        after_data: { type: object }
+        changed_at: { type: string, format: date-time }
+        petronect_id: { type: string }
+        import_run_id: { type: integer }
+    RegistrationInput:
+      type: object
+      required: [companyName, cnpj, contactName, contactRole, email, whatsapp, segment, servicesOffered, cidade, estado, planSlug, allowContact]
+      properties:
+        companyName: { type: string, minLength: 1, maxLength: 500 }
+        cnpj: { type: string, minLength: 14, maxLength: 18 }
+        contactName: { type: string, minLength: 1, maxLength: 500 }
+        contactRole: { type: string, minLength: 1, maxLength: 500 }
+        email: { type: string, format: email, maxLength: 254 }
+        whatsapp: { type: string, minLength: 1, maxLength: 500 }
+        segment: { type: string, minLength: 1, maxLength: 500 }
+        servicesOffered: { type: string, minLength: 1, maxLength: 500 }
+        cidade: { type: string, minLength: 1, maxLength: 100 }
+        estado: { type: string, minLength: 2, maxLength: 2 }
+        planSlug: { type: string }
+        allowContact: { type: boolean }
+    RegistrationResult:
+      type: object
+      required: [inquiryId, checkoutPath]
+      properties:
+        inquiryId: { type: integer }
+        checkoutPath: { type: string }
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    DashboardSummary:
+      type: object
+      required:
+        - totalOpportunities
+        - totalBulletins
+        - totalClients
+        - opportunitiesThisMonth
+        - bulletinsThisMonth
+        - radarScore
+      properties:
+        totalOpportunities:
+          type: integer
+        totalBulletins:
+          type: integer
+        totalClients:
+          type: integer
+        opportunitiesThisMonth:
+          type: integer
+        bulletinsThisMonth:
+          type: integer
+        radarScore:
+          type: number
+
+    ActivityItem:
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - description
+        - createdAt
+        - reference
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        reference:
+          type: ["string", "null"]
+
+    DashboardSearchResult:
+      type: object
+      required: [id, type, title, subtitle, reference, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [opportunity, bulletin, client]
+        title:
+          type: string
+        subtitle:
+          type: string
+        reference:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    SectorStat:
+      type: object
+      required:
+        - sector
+        - count
+        - percentage
+      properties:
+        sector:
+          type: string
+        count:
+          type: integer
+        percentage:
+          type: number
+
+    Opportunity:
+      type: object
+      required:
+        - id
+        - title
+        - sector
+        - company
+        - value
+        - status
+        - region
+        - createdAt
+        - documentsChecked
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        sector:
+          type: string
+        company:
+          type: string
+        value:
+          type: number
+        status:
+          type: string
+        region:
+          type: string
+        description:
+          type: ["string", "null"]
+        deadline:
+          type: ["string", "null"]
+        petronectId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        documentsChecked:
+          type: boolean
+
+    OpportunityDocument:
+      type: object
+      required: [id, opportunityId, kind, label, url, linkTestedAt, linkTestedByName, createdAt]
+      properties:
+        id: { type: integer }
+        opportunityId: { type: integer }
+        kind: { type: string, enum: [edital, orcamento, anexo, esclarecimento, fonte_oficial, outro] }
+        label: { type: string }
+        url: { type: string, format: uri }
+        linkTestedAt: { type: [string, "null"], format: date-time }
+        linkTestedByName: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+
+    OpportunityDocumentReview:
+      type: object
+      required: [status, verifiedAt, verifiedByName, sourceDocumentId]
+      properties:
+        status: { type: string, enum: [pending, verified] }
+        verifiedAt: { type: [string, "null"], format: date-time }
+        verifiedByName: { type: [string, "null"] }
+        sourceDocumentId: { type: [integer, "null"] }
+
+    OpportunityDocumentsState:
+      type: object
+      required: [documents, review]
+      properties:
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/OpportunityDocument" }
+        review: { $ref: "#/components/schemas/OpportunityDocumentReview" }
+
+    OpportunityDocumentInput:
+      type: object
+      required: [kind, label, url]
+      properties:
+        kind: { type: string, enum: [edital, orcamento, anexo, esclarecimento, fonte_oficial, outro] }
+        label: { type: string, minLength: 1, maxLength: 240 }
+        url: { type: string, format: uri, maxLength: 2048 }
+
+    OpportunityDocumentReviewInput:
+      type: object
+      required: [sourceDocumentId]
+      properties:
+        sourceDocumentId: { type: integer, minimum: 1 }
+
+    OpportunityInput:
+      type: object
+      required:
+        - title
+        - sector
+        - company
+        - value
+        - status
+        - region
+      properties:
+        title:
+          type: string
+        sector:
+          type: string
+        company:
+          type: string
+        value:
+          type: number
+        status:
+          type: string
+        region:
+          type: string
+        description:
+          type: string
+        deadline:
+          type: string
+        petronectId:
+          type: string
+
+    Bulletin:
+      type: object
+      required:
+        - id
+        - title
+        - category
+        - summary
+        - author
+        - publishedAt
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        summary:
+          type: string
+        content:
+          type: ["string", "null"]
+        author:
+          type: string
+        companyId:
+          type: ["integer", "null"]
+        publishedAt:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    BulletinInput:
+      type: object
+      required:
+        - title
+        - category
+        - summary
+        - author
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        author:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    Client:
+      type: object
+      required:
+        - id
+        - name
+        - company
+        - segment
+        - plan
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        company:
+          type: string
+        segment:
+          type: string
+        plan:
+          type: string
+        status:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ClientInput:
+      type: object
+      required:
+        - name
+        - company
+        - segment
+        - plan
+        - status
+      properties:
+        name:
+          type: string
+        company:
+          type: string
+        segment:
+          type: string
+        plan:
+          type: string
+        status:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+
+    PlanFeature:
+      type: object
+      required:
+        - label
+        - included
+      properties:
+        label:
+          type: string
+        included:
+          type: boolean
+        detail:
+          type: ["string", "null"]
+
+    Plan:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - price
+        - period
+        - description
+        - targetAudience
+        - opportunityLimit
+        - bulletinLimit
+        - clientLimit
+        - features
+        - highlighted
+        - ctaLabel
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        period:
+          type: string
+        description:
+          type: string
+        targetAudience:
+          type: string
+        opportunityLimit:
+          type: ["integer", "null"]
+        bulletinLimit:
+          type: ["integer", "null"]
+        clientLimit:
+          type: ["integer", "null"]
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanFeature"
+        highlighted:
+          type: boolean
+        badge:
+          type: ["string", "null"]
+        ctaLabel:
+          type: string
+
+    Inquiry:
+      type: object
+      required:
+        - id
+        - companyName
+        - cnpj
+        - contactName
+        - contactRole
+        - email
+        - whatsapp
+        - segment
+        - servicesOffered
+        - hasPetrobrasRegistration
+        - interestedInBidding
+        - operationalVolume
+        - regions
+        - desiredPlan
+        - allowContact
+        - status
+        - leadScore
+        - source
+        - recommendedPlan
+        - createdAt
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        cnpj:
+          type: string
+        contactName:
+          type: string
+        contactRole:
+          type: string
+        email:
+          type: string
+        whatsapp:
+          type: string
+        segment:
+          type: string
+        servicesOffered:
+          type: string
+        hasPetrobrasRegistration:
+          type: boolean
+        availableDocuments:
+          type: ["string", "null"]
+        interestedInBidding:
+          type: boolean
+        operationalVolume:
+          type: string
+        regions:
+          type: string
+        desiredPlan:
+          type: string
+        allowContact:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+        leadScore:
+          type: integer
+        source:
+          type: string
+        recommendedPlan:
+          type: string
+        convertedClientId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    InquiryInput:
+      type: object
+      required:
+        - companyName
+        - cnpj
+        - contactName
+        - contactRole
+        - email
+        - whatsapp
+        - segment
+        - servicesOffered
+        - hasPetrobrasRegistration
+        - interestedInBidding
+        - operationalVolume
+        - regions
+        - desiredPlan
+        - allowContact
+      properties:
+        companyName:
+          type: string
+        cnpj:
+          type: string
+        contactName:
+          type: string
+        contactRole:
+          type: string
+        email:
+          type: string
+        whatsapp:
+          type: string
+        segment:
+          type: string
+        servicesOffered:
+          type: string
+        hasPetrobrasRegistration:
+          type: boolean
+        availableDocuments:
+          type: string
+        interestedInBidding:
+          type: boolean
+        operationalVolume:
+          type: string
+        regions:
+          type: string
+        desiredPlan:
+          type: string
+        allowContact:
+          type: boolean
+        notes:
+          type: string
+
+    InquiryStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        recommendedPlan:
+          type: string
+
+    PetroconnectStatus:
+      type: object
+      required:
+        - connected
+        - status
+        - lastSyncAt
+        - syncedClients
+        - syncedOpportunities
+        - syncedDocuments
+        - syncedBulletins
+      properties:
+        connected:
+          type: boolean
+        status:
+          type: string
+        lastSyncAt:
+          type: ["string", "null"]
+        syncedClients:
+          type: integer
+        syncedOpportunities:
+          type: integer
+        syncedDocuments:
+          type: integer
+        syncedBulletins:
+          type: integer
+        accountId:
+          type: ["string", "null"]
+        accountName:
+          type: ["string", "null"]
+
+    PetroconnectConnectInput:
+      type: object
+      required:
+        - apiKey
+        - accountId
+      properties:
+        apiKey:
+          type: string
+        accountId:
+          type: string
+
+    PetroconnectSyncInput:
+      type: object
+      required:
+        - entities
+      properties:
+        entities:
+          type: array
+          items:
+            type: string
+
+    PetroconnectSyncResult:
+      type: object
+      required:
+        - success
+        - syncedAt
+        - results
+      properties:
+        success:
+          type: boolean
+        syncedAt:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PetroconnectSyncEntityResult"
+
+    PetroconnectSyncEntityResult:
+      type: object
+      required:
+        - entity
+        - count
+        - status
+      properties:
+        entity:
+          type: string
+        count:
+          type: integer
+        status:
+          type: string
+        error:
+          type: ["string", "null"]
+
+    PetroconnectSyncLogEntry:
+      type: object
+      required:
+        - id
+        - syncedAt
+        - entities
+        - totalSynced
+        - status
+      properties:
+        id:
+          type: integer
+        syncedAt:
+          type: string
+        entities:
+          type: string
+
+    ChecklistItem:
+      type: object
+      required:
+        - id
+        - betaClientId
+        - label
+        - completed
+        - displayOrder
+      properties:
+        id:
+          type: integer
+        betaClientId:
+          type: integer
+        label:
+          type: string
+        completed:
+          type: boolean
+        displayOrder:
+          type: integer
+
+    ChecklistItemPatch:
+      type: object
+      required:
+        - completed
+      properties:
+        completed:
+          type: boolean
+
+    BetaClient:
+      type: object
+      required:
+        - id
+        - code
+        - companyName
+        - tradeName
+        - cnpj
+        - segment
+        - size
+        - legalNature
+        - simplesNacional
+        - isHeadquarters
+        - openedAt
+        - capital
+        - cadastralStatus
+        - stateRegistrations
+        - petrobrasRegistration
+        - priority
+        - clientStatus
+        - onboardingStatus
+        - commercialReady
+        - checklist
+        - createdAt
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        companyName:
+          type: string
+        tradeName:
+          type: string
+        cnpj:
+          type: string
+        segment:
+          type: string
+        size:
+          type: string
+        legalNature:
+          type: string
+        simplesNacional:
+          type: boolean
+        isHeadquarters:
+          type: boolean
+        openedAt:
+          type: string
+        capital:
+          type: number
+        cadastralStatus:
+          type: string
+        stateRegistrations:
+          type: array
+          items:
+            type: string
+        petrobrasRegistration:
+          type: boolean
+        priority:
+          type: string
+        clientStatus:
+          type: string
+        onboardingStatus:
+          type: string
+        commercialReady:
+          type: boolean
+        contactName:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        whatsapp:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        desiredPlan:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        checklist:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChecklistItem"
+        createdAt:
+          type: string
+
+    BetaClientInput:
+      type: object
+      required:
+        - code
+        - companyName
+        - tradeName
+        - cnpj
+        - segment
+        - size
+        - legalNature
+        - simplesNacional
+        - isHeadquarters
+        - openedAt
+        - capital
+        - cadastralStatus
+        - petrobrasRegistration
+        - priority
+        - clientStatus
+        - onboardingStatus
+        - commercialReady
+      properties:
+        code:
+          type: string
+        companyName:
+          type: string
+        tradeName:
+          type: string
+        cnpj:
+          type: string
+        segment:
+          type: string
+        size:
+          type: string
+        legalNature:
+          type: string
+        simplesNacional:
+          type: boolean
+        isHeadquarters:
+          type: boolean
+        openedAt:
+          type: string
+        capital:
+          type: number
+        cadastralStatus:
+          type: string
+        stateRegistrations:
+          type: array
+          items:
+            type: string
+        petrobrasRegistration:
+          type: boolean
+        priority:
+          type: string
+        clientStatus:
+          type: string
+        onboardingStatus:
+          type: string
+        commercialReady:
+          type: boolean
+        contactName:
+          type: string
+        email:
+          type: string
+        whatsapp:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        desiredPlan:
+          type: string
+        notes:
+          type: string
+
+    BetaClientPatch:
+      type: object
+      properties:
+        contactName:
+          type: string
+        email:
+          type: string
+        whatsapp:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        desiredPlan:
+          type: string
+        notes:
+          type: string
+        priority:
+          type: string
+        clientStatus:
+          type: string
+        onboardingStatus:
+          type: string
+        commercialReady:
+          type: boolean
+        totalSynced:
+          type: integer
+        status:
+          type: string
+        errorMessage:
+          type: ["string", "null"]
+    Radar360Profile:
+      type: object
+      required: [id, referenceKey, companyId, candidateCompanyId, companyName, displayName, aliases, focusAreas, declaredCapabilities, verifiedCapabilities, regions, keywords, exclusions, exclusionsReviewed, profileStatus, reconciliationStatus, cadence, scheduleEnabled, missingFields, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        referenceKey: { type: string }
+        companyId: { type: [integer, "null"] }
+        candidateCompanyId: { type: [integer, "null"] }
+        companyName: { type: [string, "null"] }
+        displayName: { type: string }
+        aliases: { type: array, items: { type: string } }
+        focusAreas: { type: array, items: { type: string } }
+        declaredCapabilities: { type: array, items: { type: string } }
+        verifiedCapabilities: { type: array, items: { type: string } }
+        regions: { type: array, items: { type: string } }
+        keywords: { type: array, items: { type: string } }
+        exclusions: { type: array, items: { type: string } }
+        exclusionsReviewed: { type: boolean }
+        profileStatus: { type: string, enum: [incomplete, ready] }
+        reconciliationStatus: { type: string, enum: [pending, suggested, linked] }
+        cadence: { type: string, enum: [manual, daily, weekly] }
+        scheduleEnabled: { type: boolean }
+        missingFields: { type: array, items: { type: string } }
+        logoFileId: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Radar360ProfileInput:
+      type: object
+      required: [companyId]
+      properties:
+        companyId: { type: integer }
+    Radar360ProfileUpdate:
+      type: object
+      properties:
+        displayName: { type: string }
+        aliases: { type: array, items: { type: string } }
+        focusAreas: { type: array, items: { type: string } }
+        declaredCapabilities: { type: array, items: { type: string } }
+        regions: { type: array, items: { type: string } }
+        keywords: { type: array, items: { type: string } }
+        exclusions: { type: array, items: { type: string } }
+        exclusionsReviewed: { type: boolean }
+        cadence: { type: string, enum: [manual, daily, weekly] }
+    Radar360ProfileLinkInput:
+      type: object
+      required: [companyId]
+      properties:
+        companyId: { type: integer }
+    Radar360CompanyMatch:
+      type: object
+      required: [id, name, legalName, segment, accountStatus, subscriptionStatus, hasActiveClientUser]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        legalName: { type: string }
+        segment: { type: string }
+        accountStatus: { type: string }
+        subscriptionStatus: { type: string }
+        hasActiveClientUser: { type: boolean }
+    Radar360LegacyMatch:
+      type: object
+      required: [company, segment, status]
+      properties:
+        company: { type: string }
+        segment: { type: string }
+        status: { type: string }
+    Radar360ReconciliationEntry:
+      type: object
+      required: [profileId, displayName, reconciliationStatus, candidateAccounts, legacyRecords]
+      properties:
+        profileId: { type: integer }
+        displayName: { type: string }
+        reconciliationStatus: { type: string, enum: [pending, suggested, linked] }
+        candidateAccounts:
+          type: array
+          items: { $ref: "#/components/schemas/Radar360CompanyMatch" }
+        legacyRecords:
+          type: array
+          items: { $ref: "#/components/schemas/Radar360LegacyMatch" }
+    Radar360Reconciliation:
+      type: object
+      required: [accounts, references]
+      properties:
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/Radar360CompanyMatch" }
+        references:
+          type: array
+          items: { $ref: "#/components/schemas/Radar360ReconciliationEntry" }
+    Radar360BootstrapResult:
+      type: object
+      required: [insertedCount, profiles]
+      properties:
+        insertedCount: { type: integer }
+        profiles:
+          type: array
+          items: { $ref: "#/components/schemas/Radar360Profile" }
+    Radar360SourceStatus:
+      type: object
+      required: [kind, label, status, recordCount, lastCheckedAt, limitations]
+      properties:
+        kind: { type: string, enum: [catalog, petronect_public_csv, client_import, petronect_live] }
+        label: { type: string }
+        status: { type: string, enum: [not_configured, pending, success, failure] }
+        recordCount: { type: integer }
+        lastCheckedAt: { type: [string, "null"], format: date-time }
+        limitations: { type: array, items: { type: string } }
+    Radar360Event:
+      type: object
+      required: [id, profileId, runId, importId, eventType, status, message, createdAt]
+      properties:
+        id: { type: integer }
+        profileId: { type: integer }
+        runId: { type: [integer, "null"] }
+        importId: { type: [integer, "null"] }
+        eventType: { type: string }
+        status: { type: string, enum: [pending, success, failure] }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+    Radar360ImportRow:
+      type: object
+      required: [processNumber, object, contractor, deadlineText, timeZone, sourceUrl, sourceName, checkedAt, checkedAtKnown, sector, region, value, status, missingFields, action, sourceKey]
+      properties:
+        processNumber: { type: [string, "null"] }
+        object: { type: string }
+        contractor: { type: [string, "null"] }
+        deadlineText: { type: [string, "null"] }
+        timeZone: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        sourceName: { type: string }
+        checkedAt: { type: string, format: date-time }
+        checkedAtKnown: { type: boolean }
+        sector: { type: [string, "null"] }
+        region: { type: [string, "null"] }
+        value: { type: [number, "null"] }
+        status: { type: [string, "null"] }
+        missingFields: { type: array, items: { type: string } }
+        action: { type: string, enum: [new, duplicate, invalid] }
+        sourceKey: { type: string }
+    Radar360Import:
+      type: object
+      required: [id, profileId, sourceName, fileName, status, totalRows, newRows, duplicateRows, invalidRows, errorMessage, createdAt, completedAt]
+      properties:
+        id: { type: integer }
+        profileId: { type: integer }
+        sourceName: { type: string }
+        fileName: { type: string }
+        status: { type: string, enum: [pending, success, failed] }
+        totalRows: { type: integer }
+        newRows: { type: integer }
+        duplicateRows: { type: integer }
+        invalidRows: { type: integer }
+        errorMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+    Radar360ImportPreview:
+      allOf:
+        - $ref: "#/components/schemas/Radar360Import"
+        - type: object
+          required: [previewRows]
+          properties:
+            previewRows:
+              type: array
+              items: { $ref: "#/components/schemas/Radar360ImportRow" }
+    Radar360SourceCoverage:
+      type: object
+      required: [kind, label, status, checkedAt, sourceTimeKnown, recordCount, limitations]
+      properties:
+        kind: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [not_configured, pending, success, failure] }
+        checkedAt: { type: [string, "null"], format: date-time }
+        sourceTimeKnown: { type: boolean }
+        recordCount: { type: integer }
+        limitations: { type: array, items: { type: string } }
+    Radar360ScoreLine:
+      type: object
+      required: [criterion, weight, points, evidence, state]
+      properties:
+        criterion: { type: string }
+        weight: { type: number }
+        points: { type: number }
+        evidence: { type: string }
+        state: { type: string, enum: [matched, not_matched, pending] }
+    Radar360RunItem:
+      type: object
+      required: [id, sourceKey, sourceName, processNumber, object, contractor, deadlineText, timeZone, sourceUrl, sourceCheckedAt, sourceTimeKnown, sector, region, value, status, justification, pendingFields, action, urgency, fitScore, scoreBreakdown, category, expired, sortOrder]
+      properties:
+        id: { type: integer }
+        sourceKey: { type: string }
+        sourceName: { type: string }
+        processNumber: { type: [string, "null"] }
+        object: { type: string }
+        contractor: { type: [string, "null"] }
+        deadlineText: { type: [string, "null"] }
+        timeZone: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        sourceCheckedAt: { type: [string, "null"], format: date-time }
+        sourceTimeKnown: { type: boolean }
+        sector: { type: [string, "null"] }
+        region: { type: [string, "null"] }
+        value: { type: [number, "null"] }
+        status: { type: [string, "null"] }
+        justification: { type: string }
+        pendingFields: { type: array, items: { type: string } }
+        action: { type: string }
+        urgency: { type: string, enum: [expired, today, urgent, soon, future, pending] }
+        fitScore: { type: [integer, "null"] }
+        scoreBreakdown:
+          type: array
+          items: { $ref: "#/components/schemas/Radar360ScoreLine" }
+        category: { type: string, enum: [gold, complementary, discarded] }
+        expired: { type: boolean }
+        sortOrder: { type: integer }
+    Radar360RunSummary:
+      type: object
+      required: [id, profileId, companyId, companyName, profileName, status, baseDate, scoreVersion, pendingFields, warnings, itemCount, imageReady, createdAt, completedAt, publishedAt]
+      properties:
+        id: { type: integer }
+        profileId: { type: integer }
+        companyId: { type: [integer, "null"] }
+        companyName: { type: [string, "null"] }
+        profileName: { type: string }
+        status: { type: string, enum: [draft, validation, ready, published, failed] }
+        baseDate: { type: string, format: date }
+        scoreVersion: { type: string }
+        pendingFields: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string } }
+        itemCount: { type: integer }
+        imageReady: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        publishedAt: { type: [string, "null"], format: date-time }
+    Radar360Run:
+      allOf:
+        - $ref: "#/components/schemas/Radar360RunSummary"
+        - type: object
+          required: [editionText, sourceKinds, sourceCoverage, scoreWeights, imageUrl, lastError, items]
+          properties:
+            editionText: { type: [string, "null"] }
+            sourceKinds: { type: array, items: { type: string } }
+            sourceCoverage:
+              type: array
+              items: { $ref: "#/components/schemas/Radar360SourceCoverage" }
+            scoreWeights:
+              type: object
+              additionalProperties: { type: number }
+            imageUrl: { type: [string, "null"] }
+            lastError: { type: [string, "null"] }
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Radar360RunItem" }
+    Radar360RunInput:
+      type: object
+      required: [profileId, sourceKinds, idempotencyKey]
+      properties:
+        profileId: { type: integer }
+        sourceKinds:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [catalog, petronect_public_csv, client_import] }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 120 }
+    Radar360File:
+      type: object
+      required: [id, profileId, kind, originalName, contentType, fileSize, capabilityLabel, status, createdAt, verifiedAt]
+      properties:
+        id: { type: integer }
+        profileId: { type: integer }
+        kind: { type: string, enum: [logo, capability_document, source_document, edition_image] }
+        originalName: { type: string }
+        contentType: { type: string }
+        fileSize: { type: integer }
+        capabilityLabel: { type: [string, "null"] }
+        status: { type: string, enum: [pending, ready, verified, rejected, failed] }
+        createdAt: { type: string, format: date-time }
+        verifiedAt: { type: [string, "null"], format: date-time }
+    Radar360FileUploadInput:
+      type: object
+      required: [profileId, kind, fileName, fileSize, contentType]
+      properties:
+        profileId: { type: integer }
+        kind: { type: string, enum: [logo, capability_document, source_document] }
+        fileName: { type: string, minLength: 1, maxLength: 180 }
+        fileSize: { type: integer, minimum: 1, maximum: 20971520 }
+        contentType: { type: string }
+        capabilityLabel: { type: string, maxLength: 160 }
+    Radar360FileUploadResponse:
+      type: object
+      required: [fileId, uploadUrl]
+      properties:
+        fileId: { type: integer }
+        uploadUrl: { type: string, format: uri }
+    Radar360FileVerificationInput:
+      type: object
+      required: [verified]
+      properties:
+        verified: { type: boolean }

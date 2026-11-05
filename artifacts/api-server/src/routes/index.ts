@@ -1,0 +1,48 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import dashboardRouter from "./dashboard";
+import opportunitiesRouter from "./opportunities";
+import opportunityDocumentsRouter from "./opportunity-documents";
+import bulletinsRouter from "./bulletins";
+import clientsRouter from "./clients";
+import plansRouter from "./plans";
+import inquiriesRouter from "./inquiries";
+import petroconnectRouter from "./petroconnect";
+import betaClientsRouter from "./beta-clients";
+import paymentsRouter from "./payments";
+import authRouter from "./auth";
+import companiesRouter from "./companies";
+import subscriptionsRouter from "./subscriptions";
+import seedCompaniesRouter from "./seed-companies";
+import portfolioRouter from "./portfolio";
+import googleAuthRouter from "./google-auth";
+import registrationRouter from "./registration";
+import petronectPublicImportRouter from "./petronect-public-import";
+import notificationsRouter from "./notifications";
+import radar360Router from "./radar360";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(authRouter);
+router.use(googleAuthRouter);
+router.use(registrationRouter);
+router.use(petronectPublicImportRouter);
+router.use(notificationsRouter);
+router.use(radar360Router);
+router.use(companiesRouter);
+router.use(subscriptionsRouter);
+router.use(seedCompaniesRouter);
+router.use(portfolioRouter);
+router.use(dashboardRouter);
+router.use(opportunitiesRouter);
+router.use(opportunityDocumentsRouter);
+router.use(bulletinsRouter);
+router.use(clientsRouter);
+router.use(plansRouter);
+router.use(inquiriesRouter);
+router.use(petroconnectRouter);
+router.use(betaClientsRouter);
+router.use(paymentsRouter);
+
+export default router;

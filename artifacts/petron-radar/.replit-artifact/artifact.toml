@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Petron Radar"
+version = "1.0.0"
+id = "artifacts/petron-radar"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18277
+
+[services.development]
+run = "pnpm --filter @workspace/petron-radar run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/petron-radar", "run", "build" ]
+publicDir = "artifacts/petron-radar/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18277"
+BASE_PATH = "/"

@@ -1,0 +1,65 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" fill="#f4f6f9"></rect>
+  <text x="512" y="90" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#2c3e50">Gráfico Pizza</text>
+
+  <g transform="translate(512 540)">
+    <circle r="290" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"></circle>
+
+    
+    <path d="M0 0 L0 -280 A280 280 0 0 1 164.5 226.4 Z" fill="#e74c3c">
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="0" fill="freeze"></animateTransform>
+      <animate attributeName="opacity" values="0;1" dur="0.6s" begin="0s" fill="freeze"></animate>
+      <animateTransform attributeName="transform" type="translate" values="0 0;20 15;0 0" dur="3s" begin="1s" repeatCount="indefinite" additive="sum"></animateTransform>
+    </path>
+
+    
+    <path d="M0 0 L164.5 226.4 A280 280 0 0 1 -164.5 226.4 Z" fill="#3498db">
+      <animate attributeName="opacity" values="0;1" dur="0.6s" begin="0.4s" fill="freeze"></animate>
+    </path>
+
+    
+    <path d="M0 0 L-164.5 226.4 A280 280 0 0 1 -266.2 -87.1 Z" fill="#2ecc71">
+      <animate attributeName="opacity" values="0;1" dur="0.6s" begin="0.8s" fill="freeze"></animate>
+    </path>
+
+    
+    <path d="M0 0 L-266.2 -87.1 A280 280 0 0 1 0 -280 Z" fill="#f1c40f">
+      <animate attributeName="opacity" values="0;1" dur="0.6s" begin="1.2s" fill="freeze"></animate>
+    </path>
+
+    <circle r="110" fill="#ffffff"></circle>
+
+    
+    <text x="140" y="-100" font-family="Arial, sans-serif" font-size="34" font-weight="bold" text-anchor="middle" fill="#ffffff">
+      40%
+      <animate attributeName="opacity" values="0;1" dur="0.5s" begin="0.6s" fill="freeze"></animate>
+    </text>
+    <text x="40" y="200" font-family="Arial, sans-serif" font-size="34" font-weight="bold" text-anchor="middle" fill="#ffffff">
+      25%
+      <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1s" fill="freeze"></animate>
+    </text>
+    <text x="-170" y="115" font-family="Arial, sans-serif" font-size="34" font-weight="bold" text-anchor="middle" fill="#ffffff">
+      20%
+      <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.4s" fill="freeze"></animate>
+    </text>
+    <text x="-140" y="-130" font-family="Arial, sans-serif" font-size="34" font-weight="bold" text-anchor="middle" fill="#2c3e50">
+      15%
+      <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.8s" fill="freeze"></animate>
+    </text>
+
+    <text x="0" y="12" font-family="Arial, sans-serif" font-size="30" font-weight="bold" text-anchor="middle" fill="#2c3e50">Total</text>
+  </g>
+
+  
+  <g transform="translate(360 900)" font-family="Arial, sans-serif" font-size="26" fill="#2c3e50">
+    <rect x="0" y="0" width="26" height="26" fill="#e74c3c" rx="4"></rect>
+    <text x="36" y="22">Categoria A</text>
+    <rect x="0" y="40" width="26" height="26" fill="#3498db" rx="4"></rect>
+    <text x="36" y="62">Categoria B</text>
+    <rect x="230" y="0" width="26" height="26" fill="#2ecc71" rx="4"></rect>
+    <text x="266" y="22">Categoria C</text>
+    <rect x="230" y="40" width="26" height="26" fill="#f1c40f" rx="4"></rect>
+    <text x="266" y="62">Categoria D</text>
+    <animate attributeName="opacity" values="0;1" dur="1s" begin="2s" fill="freeze"></animate>
+  </g>
+</svg>

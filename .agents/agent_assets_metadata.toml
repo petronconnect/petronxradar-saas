@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "93nZ4v1SjgkzQSuPFlN-t"
+uri = "file://.local/tmp/pix-teste-qr.png"
+type = "image"
+title = "QR Code Pix — Teste R$ 14,14 (Petron Radar)"

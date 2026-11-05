@@ -1,0 +1,15 @@
+- [PWA & onboarding architecture](pwa-onboarding-arch.md) — app served at ROOT /, so manifest/sw.js use / (NOT /petron-radar/); SW prod-only (dev cleanup); InstallButton hidden until beforeinstallprompt (HTTPS only).
+- [Onboarding provisioning flow](onboarding-provisioning.md) — Pix → claimToken (sha256 in DB) → simulate-paid → provision → claim → session → WelcomeOnboarding gate.
+- [Deploy / Publish safety](deploy-publish-safety.md) — autoscale *.replit.app; Publish diffs DB schema (not drizzle-kit push); "Overwrite data" misses new account rows → bootstrap-seed prod; verify rollout via Vite asset hash; Canvas excluded.
+- [Client roster & role model](client-roster-and-roles.md) — ONE master ADMIN_PETRON in its own operator company (never in a client co); offline Pix clients onboarded by hand as CLIENTE_ADMIN + temp pw + must_set_password.
+- [Prod session cookies](prod-session-cookies.md) — secure cookie needs `app.set("trust proxy",1)` behind Replit proxy, else login 200 but next req 401 only in prod; same-origin → sameSite=lax, drop wildcard CORS.
+- [Client self-service profile](profile-self-service.md) — /meu-perfil + GET/PATCH /api/auth/profile; ids from session only; email change needs currentPassword; COALESCE can't blank phone; prod client edits go via authenticated prod API, never DB write.
+- [Pix payments now LIVE](pix-payments-interim.md) — dynamic Mercado Pago Pix on (PIX_STATIC=false), prod account, sandboxMode:false; price derived server-side from slug; webhook secret still unset.
+- [Env var vs secret precedence](replit-env-secret-precedence.md) — a shared env var shadows a same-named secret in process.env; the secret update is a no-op until you deleteEnvVars the shared key.
+- [Petronect number & deep-link](petronect-number-and-deeplink.md) — number may live in title/description not petronect_id → resolvePetronectNumero derives it; portal has NO per-proposal deep-link → "Abrir no Petronect" copies number for pasting.
+- [Petronect auto-sync feasibility](petronect-portal-scraping.md) — can't reliably auto-scrape public Petronect tender list (Akamai + SAP session); use manual/curated entry instead.
+- [Public funnel + dashboard data](landing-funnel-and-dashboard-data.md) — dashboard totals are GLOBAL; Radar Score discounts unclassified opportunities when calculating sector diversity.
+- [Pricing and billing policy](pricing-and-billing-policy.md) — R$500 monthly launch discount until 100 customers, then R$890 for new contracts; existing agreements are grandfathered; automatic Mercado Pago plus manual Pix is desired.
+- [Orval code generation compatibility](orval-codegen-compatibility.md) — after security updates, regenerate and typecheck; latest Orval can emit unsupported `Headers.entries()` output here.
+- [Google authentication boundaries](google-auth-boundaries.md) — Google augments existing accounts; public registration never grants access or merges accounts by matching email.
+- [Radar 360 profile reconciliation](radar360-profile-reconciliation.md) — Historical company names are unconfirmed references; never infer active status, capabilities, or links from a name match.
